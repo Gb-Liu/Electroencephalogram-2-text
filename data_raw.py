@@ -171,7 +171,6 @@ class ZuCo_dataset(Dataset):
         self.inputs = []
         self.tokenizer = tokenizer
 
-        # 定义任务名称映射表
         self.task_name_mapping = {
             0: 'task1-SR', 
             1: 'task2-NR',
@@ -274,9 +273,6 @@ class ZuCo_dataset(Dataset):
             input_sample['input_attn_mask_invert'],
             input_sample['target_ids'],
             input_sample['target_mask'],
-            # input_sample['sentiment_label'],
-            # input_sample['sent_level_EEG'],
-            # input_sample['input_raw_embeddings'],
             input_sample['word_contents'],
             input_sample['word_contents_attn'],
             input_sample['subject']
@@ -291,15 +287,15 @@ if __name__ == '__main__':
     if check_dataset == 'ZuCo':
         whole_dataset_dicts = []
 
-        dataset_path_task1 = './dataset/ZuCo/task1-SR/pickle/task1-SR-dataset_wRaw.pickle'
+        dataset_path_task1 = './dataset/ZuCo/task1-SR/pickle/task1-SR-dataset.pickle'
         with open(dataset_path_task1, 'rb') as handle:
             whole_dataset_dicts.append(pickle.load(handle))
 
-        dataset_path_task2 = './dataset/ZuCo/task2-NR/pickle/task2-NR-dataset_wRaw.pickle'
+        dataset_path_task2 = './dataset/ZuCo/task2-NR/pickle/task2-NR-dataset.pickle'
         with open(dataset_path_task2, 'rb') as handle:
             whole_dataset_dicts.append(pickle.load(handle))
 
-        dataset_path_task2_v2 = './dataset/ZuCo/task2-NR-2.0/pickle/task2-NR-2.0-dataset_wRaw.pickle'
+        dataset_path_task2_v2 = './dataset/ZuCo/task2-NR-2.0/pickle/task2-NR-2.0-dataset.pickle'
         with open(dataset_path_task2_v2, 'rb') as handle:
             whole_dataset_dicts.append(pickle.load(handle))
 
@@ -326,3 +322,4 @@ if __name__ == '__main__':
         print('trainset size:', len(train_set))
         print('devset size:', len(dev_set))
         print('testset size:', len(test_set))
+
