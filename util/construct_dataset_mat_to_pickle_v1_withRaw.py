@@ -138,7 +138,7 @@ for mat_file in tqdm(mat_files):
     # print(dataset_dict[subject_name][0]['word'][0]['word_level_EEG']['FFD'])
 
 """output"""
-output_name = f'{task_name}-dataset_wRaw.pickle'
+output_name = f'{task_name}-dataset.pickle'
 # with open(os.path.join(output_dir,'task1-SR-dataset.json'), 'w') as out:
 #     json.dump(dataset_dict,out,indent = 4)
 
