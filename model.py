@@ -66,7 +66,6 @@ class BrainTranslator(nn.Module):
     def forward(self, input_embeddings_batch, input_masks_batch, input_masks_invert,
                 target_ids_batch_converted, lenghts_words, word_contents_batch, word_contents_attn_batch,
                 stepone, subject_batch, device, features=False):
-        # 确保输入序列长度匹配位置编码
         if input_embeddings_batch.size(1) != self.pos_embedding.size(1):
             print(f"Warning: Input sequence length {input_embeddings_batch.size(1)} "
                   f"does not match position encoding length {self.pos_embedding.size(1)}")
@@ -86,7 +85,6 @@ class BrainTranslator(nn.Module):
             loss = nn.MSELoss()
             return loss(brain_embedding, words_embedding)
         else:
-            # 确保序列长度一致
             if brain_embedding.size(1) != input_masks_batch.size(1):
                 # print(f"Adjusting input_masks_batch from {input_masks_batch.size(1)} to {brain_embedding.size(1)}")
                 input_masks_batch = input_masks_batch[:, :brain_embedding.size(1)]
@@ -106,12 +104,8 @@ class ConvolutionModule(nn.Module):
     def __init__(self, in_channels=56, out_channels=56, output_dim=840, target_length=56):
         super().__init__()
 
-        # 添加卷积核数量记录
         self.num_kernels = 3
 
-        # 创建5个并行的卷积层
-        self.conv1 = nn.Conv2d( in_channels=in_channels, out_channels=out_channels, kernel_size=(33, 2), stride=(2, 2), padding=(31, 0), dilation=(2,1))
-        self.conv5 = nn.Conv2d( in_channels=in_channels, out_channels=out_channels, kernel_size=(5, 2), stride=(2, 2), padding=(3, 0), dilation=(2, 1) )
         self.conv2 = nn.Conv2d( in_channels=in_channels, out_channels=out_channels,
             kernel_size=(33, 2), stride=(2, 2), padding=(15, 0), dilation=1 )
         self.conv3 = nn.Conv2d( in_channels=in_channels, out_channels=out_channels,
@@ -122,41 +116,30 @@ class ConvolutionModule(nn.Module):
         self.conv = nn.Conv2d( in_channels=in_channels, out_channels=out_channels, kernel_size=(4, 5), stride=(2, 1), padding=(10, 0), dilation= 1)
         
         self.flatten = nn.Flatten(start_dim=2)
-
-        # 批归一化和激活函数
         self.bn = nn.BatchNorm1d(out_channels)
         self.relu = nn.ReLU()
 
         self.fc = nn.Linear(840, 1024)
 
     def forward(self, x, device):
-        """输入尺寸: (batch, 56, 105, 24)"""
-
-        # 卷积操作
-        #out1 = self.conv1(x)  # (batch, 56, 52, 12)
-        #out5 = self.conv5(x)  # (batch, 56, 52, 12)
+      
         out2 = self.conv2(x)  # (batch, 56, 52, 12)
         out3 = self.conv3(x)  # (batch, 56, 52, 12)
         out4 = self.conv4(x)  # (batch, 56, 52, 12)
 
-        #out1 = self.relu(self.conv(out1))
-        #out5 = self.relu(self.conv(out5))  
         out2 = self.conv(self.relu(out2))  #[8, 56, 35, 8]
         out3 = self.conv(self.relu(out3))  
         out4 = self.conv(self.relu(out4))
-        #print("out2.shape : ",out2.shape)  
 
-        #flat1 = self.flatten(out1)  
-        #flat5 = self.flatten(out5)  
         flat2 = self.flatten(out2)  
         flat3 = self.flatten(out3)  
         flat4 = self.flatten(out4) 
 
-        #combined = torch.cat([flat1, flat2, flat3, flat4, flat5], dim=2)
+
         combined = torch.cat([flat2, flat3, flat4], dim=2)
         combined = self.fc(combined)
 
-        # 激活函数和批归一化
         #output = self.relu(self.bn(combined))  
         output = self.bn(combined)
+
         return output
