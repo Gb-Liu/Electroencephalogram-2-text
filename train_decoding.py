@@ -18,6 +18,7 @@ from transformers import BartTokenizer, BartForConditionalGeneration, BertTokeni
     BertForSequenceClassification, RobertaTokenizer, RobertaForSequenceClassification
 from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
 from transformers import AutoConfig
+import traceback
 
 from data_raw import ZuCo_dataset
 from model2 import BrainTranslator
@@ -65,7 +66,6 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
     num_kernels = model.conv_module.num_kernels
     num_layers = model.num_layers
 
-    # 用于保存每一轮的评估指标
     results = {
         'epoch': [],
         'train_loss': [], 'dev_loss': [], 'test_loss': [],
@@ -173,7 +173,6 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
                     # statistics
                     running_loss += loss.item() * input_embeddings_batch.size()[0]  # batch loss
 
-                    # 获取当前学习率（从优化器获取，兼容所有调度器）
                     current_lr = optimizer.param_groups[0]['lr']
                     tepoch.set_postfix(loss=loss.item(), lr=current_lr)
 
@@ -184,7 +183,6 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
                         dev_writer.add_scalar("dev_full", loss.item(), index_plot_dev)
                         index_plot_dev += 1
 
-                    # 仅对CyclicLR在训练阶段更新（ReduceLROnPlateau在验证后更新）
                     if phase == 'train' and not isinstance(scheduler, ReduceLROnPlateau):
                         scheduler.step()
 
@@ -197,7 +195,7 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
             elif phase == 'dev':
                 dev_epoch_loss = epoch_loss
                 val_losses.append(epoch_loss)
-                # 对ReduceLROnPlateau，在验证阶段传入验证损失更新
+                
                 if isinstance(scheduler, ReduceLROnPlateau):
                     scheduler.step(dev_epoch_loss)
             elif phase == 'test':
@@ -209,7 +207,6 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
             elif phase == 'dev':
                 train_writer.add_scalar("val", epoch_loss, epoch)
 
-            # 每个epoch结束后统一记录对比指标
             if train_epoch_loss is not None and dev_epoch_loss is not None:
                 train_writer.add_scalars('loss train/val', {
                     'train': train_epoch_loss,
@@ -265,42 +262,30 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
                     print(f"BLEU calculation failed: {e}")
                     bleu_1, bleu_2, bleu_3, bleu_4 = 0.0, 0.0, 0.0, 0.0
 
-                # Calculate BERTScore safely
-                # 确保过滤后的候选文本和参考文本数量一致
                 filtered_pairs = [(p, r) for p, r in zip(pred_string_list, target_string_list)
                                   if p.strip() and r.strip()]
                 filtered_pred_string_list = [p for p, r in filtered_pairs]
                 filtered_target_string_list = [r for p, r in filtered_pairs]
 
-                # 打印过滤后的样本数量
-                print(f"过滤后: {len(filtered_pred_string_list)} 个有效样本")
 
-                # 计算BERTScore safely
                 try:
                     if filtered_pred_string_list and filtered_target_string_list:
-                        # 检查数量是否匹配
                         if len(filtered_pred_string_list) != len(filtered_target_string_list):
-                            print(
-                                f"警告: 过滤后候选文本({len(filtered_pred_string_list)})和参考文本({len(filtered_target_string_list)})数量不一致")
                             min_len = min(len(filtered_pred_string_list), len(filtered_target_string_list))
                             filtered_pred_string_list = filtered_pred_string_list[:min_len]
                             filtered_target_string_list = filtered_target_string_list[:min_len]
-                            print(f"已截断为相同长度: {min_len}")
 
                         P, R, F1 = score(filtered_pred_string_list, filtered_target_string_list,
                                          lang='en', device=device, model_type="bert-large-uncased")
                         print(
                             f"BERTScore P: {np.mean(np.array(P)):.4f}, R: {np.mean(np.array(R)):.4f}, F1: {np.mean(np.array(F1)):.4f}")
                     else:
-                        print("警告: 过滤后无有效样本用于BERTScore计算")
                         P, R, F1 = [0.0], [0.0], [0.0]
                 except Exception as e:
-                    print(f"BERTScore计算失败: {e}")
-                    import traceback
+                    
                     traceback.print_exc()
                     P, R, F1 = [0.0], [0.0], [0.0]
 
-                # 保存每一轮的评估指标
                 results['epoch'].append(epoch + 1)
                 results['train_loss'].append(train_epoch_loss)
                 results['dev_loss'].append(dev_epoch_loss)
@@ -323,10 +308,7 @@ def train_model(dataloaders, device, model, criterion, optimizer, scheduler, tok
                 results['bertscore_F1'].append(np.mean(np.array(F1)))
 
         print()
-        # 构建文件名
         results_file_name = f"Conformer_{skip_step_one}_b{batch_size}_ker{num_kernels}_layers{num_layers}_{num_epochs_step1}_{num_epochs_step2}_{step1_lr}_{step2_lr}_training_results.xlsx"
-        #results_file_name = f"Conformer-no-conv_{skip_step_one}_b{batch_size}_layers{num_layers}_{num_epochs_step1}_{num_epochs_step2}_{step1_lr}_{step2_lr}_training_results.xlsx"
-        # 保存每一轮的结果到Excel文件
         df = pd.DataFrame(results)
         df.to_excel(f"./results/{results_file_name}", index=False)
 
@@ -464,11 +446,6 @@ if __name__ == '__main__':
     else:
         save_name = f'Conformer_{skip_step_one}_{task_name}_finetune_{model_name}_2steptraining_b{batch_size}_ker{num_kernels}_layers{num_layers}_{num_epochs_step1}_{num_epochs_step2}_{step1_lr}_{step2_lr}_{dataset_setting}'
 
-    #if skip_step_one:
-        #save_name = f'Conformer-no-conv_{skip_step_one}_{task_name}_finetune_{model_name}_skipstep1_b{batch_size}_layers{num_layers}_{num_epochs_step1}_{num_epochs_step2}_{step1_lr}_{step2_lr}_{dataset_setting}'
-    #else:
-        #save_name = f'Conformer-no-conv_{skip_step_one}_{task_name}_finetune_{model_name}_2steptraining_b{batch_size}_layers{num_layers}_{num_epochs_step1}_{num_epochs_step2}_{step1_lr}_{step2_lr}_{dataset_setting}'
-
     output_checkpoint_name_best = save_path + f'/best/{save_name}.pt'
     output_checkpoint_name_last = save_path + f'/last/{save_name}.pt'
 
@@ -558,4 +535,5 @@ if __name__ == '__main__':
     val_writer.flush()
     val_writer.close()
     dev_writer.flush()
+
     dev_writer.close()
