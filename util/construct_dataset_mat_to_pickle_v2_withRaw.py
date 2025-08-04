@@ -130,9 +130,6 @@ output_dir = f'E:/EEG-to-Text-Decoding-main/EEG-to-Text-Decoding-main/dataset/Zu
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 output_name = f'{task_name}-dataset.pickle'
-# output_name = f'task2-NR-2.0-dataset_wRaw.pickle'
-# with open(os.path.join(output_dir,'task1-SR-dataset.json'), 'w') as out:
-#     json.dump(dataset_dict,out,indent = 4)
 
 with open(os.path.join(output_dir,output_name), 'wb') as handle:
     pickle.dump(dataset_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
