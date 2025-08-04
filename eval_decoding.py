@@ -16,11 +16,11 @@ from rouge import Rouge
 from config import get_config
 
 from torch.nn.utils.rnn import pad_sequence
-from openai import OpenAI  # 需要openai>=1.0.0
+from openai import OpenAI  
 
 # 设置DeepSeek API
 deepseek_client = OpenAI(
-    api_key="sk-214b272d9e304dd28b87868ebfdf356f",  # 替换为你的DeepSeek API密钥
+    api_key="",  
     base_url="https://api.deepseek.com/v1"
 )
 
@@ -49,8 +49,7 @@ def deepseek_refinement(corrupted_text):
 
 
 def eval_model(dataloaders, device, tokenizer, criterion, model, output_all_results_path='./results_raw/temp.txt', stepone=False):
-    # 控制是否使用DeepSeek精炼
-    use_deepseek = False  # 设置为True以启用DeepSeek精炼
+    use_deepseek = False 
 
     print("Saving to: ", output_all_results_path)
     model.eval()  # Set model to evaluate mode
@@ -125,11 +124,9 @@ def eval_model(dataloaders, device, tokenizer, criterion, model, output_all_resu
             pred_string_list.append(predicted_string)
 
             if use_deepseek:
-                # 使用DeepSeek进行文本精炼
                 predicted_string_refined = deepseek_refinement(predicted_string).replace('\n', '')
                 f.write(f'refined string: {predicted_string_refined}\n')
 
-                # 获取精炼文本的token
                 refined_input_ids = tokenizer.encode(
                     predicted_string_refined,
                     return_tensors='pt',
@@ -180,7 +177,7 @@ def eval_model(dataloaders, device, tokenizer, criterion, model, output_all_resu
 
     if use_deepseek:
         print()
-        print("Refined outputs with DeepSeek")  # 修改这里：GPT4 -> DeepSeek
+        print("Refined outputs with DeepSeek")  
         """ calculate corpus bleu score """
         weights_list = [(1.0,), (0.5, 0.5), (1. / 3., 1. / 3., 1. / 3.), (0.25, 0.25, 0.25, 0.25)]
         for weight in weights_list:
@@ -300,4 +297,5 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
 
     ''' eval '''
+
     eval_model(dataloaders, device, tokenizer, criterion, model, output_all_results_path=output_all_results_path)
